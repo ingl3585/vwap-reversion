@@ -1,0 +1,78 @@
+# engine/engine.py
+
+import logging
+from api.schemas import TickFeature, DecisionMessage
+from engine.state import StateStore, SymbolState
+from engine.indicators import update_ewma_z
+from engine.policy import Policy
+
+logger = logging.getLogger("engine.engine")
+
+class DecisionEngine:
+    def __init__(self):
+        self.state_store = StateStore()
+        self.policy = Policy()
+        logger.info("DecisionEngine initialized")
+
+    def _maybe_reset_session(self, state: SymbolState, session_date: str, symbol_name: str):
+        if state.currentSessionDate and state.currentSessionDate != session_date:
+            # Validate session date format and progression
+            if not self._is_valid_session_progression(state.currentSessionDate, session_date):
+                logger.warning(
+                    f"Suspicious session date change for {symbol_name}: "
+                    f"{state.currentSessionDate} -> {session_date}"
+                )
+            
+            logger.info(
+                f"Session reset for {symbol_name}: {state.currentSessionDate} -> {session_date} "
+                f"(had {state.observationCount} observations)"
+            )
+            state.reset_session()
+        state.currentSessionDate = session_date
+
+    def _is_valid_session_progression(self, old_date: str, new_date: str) -> bool:
+        try:
+            # Basic format check - should be YYYY-MM-DD
+            if len(old_date) != 10 or len(new_date) != 10:
+                return False
+            if old_date[:4].isdigit() and new_date[:4].isdigit():
+                old_year = int(old_date[:4])
+                new_year = int(new_date[:4])
+                # Year shouldn't jump more than 1
+                return abs(new_year - old_year) <= 1
+            return True
+        except (ValueError, IndexError):
+            return False
+
+    def _validate_and_update_position(self, state: SymbolState, reported_position: int):
+        if state.positionQty != reported_position:
+            if state.observationCount > 0:
+                logger.warning(
+                    f"Position mismatch - Engine: {state.positionQty}, "
+                    f"NinjaTrader: {reported_position}. Using NinjaTrader value."
+                )
+            state.positionQty = reported_position
+
+    def decide(self, tick: TickFeature) -> DecisionMessage:
+        state = self.state_store.get(tick.symbolName)
+        self._maybe_reset_session(state, tick.sessionDate, tick.symbolName)
+        vwap_price = tick.vwap
+        deviation = tick.lastPrice - vwap_price
+        # Track position state for validation
+        self._validate_and_update_position(state, tick.positionQty)
+
+        # increment observation count for warmup logic
+        state.observationCount += 1
+        z_score = update_ewma_z(state, deviation)
+        spread = tick.askPrice - tick.bidPrice
+        mid_price = 0.5 * (tick.bidPrice + tick.askPrice)
+        
+        logger.info(
+            f"Calculations for {tick.symbolName}: vwap={vwap_price:.4f}, "
+            f"deviation={deviation:.4f}, z_score={z_score:.4f}, spread={spread:.4f}, mid={mid_price:.4f}"
+        )
+        
+        return self.policy.decide(
+            z_score, tick.positionQty, mid_price, spread, 
+            state.observationCount, state.emaVariance, tick.tickSize
+        )

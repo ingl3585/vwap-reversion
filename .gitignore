@@ -1,0 +1,119 @@
+# .gitignore
+
+# ===========================================
+# Python
+# ===========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ===========================================
+# Virtual Environments
+# ===========================================
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ===========================================
+# IDEs and Editors
+# ===========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ===========================================
+# Trading & Financial Data (CRITICAL!)
+# ===========================================
+# Never commit sensitive trading data
+*.csv
+*.json
+data/
+logs/
+backtest_results/
+trade_history/
+positions/
+pnl/
+
+# API Keys and Secrets (CRITICAL!)
+.env.*
+secrets/
+credentials/
+keys/
+*.key
+*.pem
+config_prod.py
+config_local.py
+
+# ===========================================
+# NinjaTrader Specific
+# ===========================================
+# Compiled NinjaScript assemblies
+bin/
+obj/
+*.dll
+*.cache
+*.user
+
+# ===========================================
+# Logs and Monitoring
+# ===========================================
+*.log
+logs/
+log/
+.logs/
+
+# ===========================================
+# Testing
+# ===========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+
+# ===========================================
+# Documentation and AI Tools
+# ===========================================
+.claude/
+CLAUDE.md
+
+# ===========================================
+# Temporary Files
+# ===========================================
+*.tmp
+*.temp
+.cache/
+*.pid
+
+# ===========================================
+# OS Generated
+# ===========================================
+Thumbs.db
+*.lnk
