@@ -72,6 +72,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 Calculate = Calculate.OnEachTick;
                 IsInstantiatedOnEachOptimizationIteration = false;
                 BarsRequiredToTrade = 1;
+                EntriesPerDirection = 2;  // Allow up to 2 entries per direction for position scaling
                 AddPlot(Brushes.Purple, "VWAP");
             }
             else if (State == State.DataLoaded)
@@ -189,14 +190,35 @@ namespace NinjaTrader.NinjaScript.Strategies
             int quantity = ExtractJsonInt(response, "quantity");
             double limitPrice = ExtractJsonDouble(response, "limitPrice");
 
-            if (string.IsNullOrEmpty(side) || quantity <= 0) return;
+            Print($"PlaceOrder: Received order - side={side}, type={orderType}, qty={quantity}, limit={limitPrice}");
 
-            int projectedPosition = Position.Quantity + (side == "buy" ? quantity : -quantity);
-            if (Math.Abs(projectedPosition) > MaxPositionSize) return;
+            if (string.IsNullOrEmpty(side) || quantity <= 0)
+            {
+                Print($"PlaceOrder: REJECTED - Invalid side or quantity");
+                return;
+            }
+
+            // Calculate current signed position (negative for short)
+            int currentSignedPosition = Position.MarketPosition == MarketPosition.Short 
+                ? -Position.Quantity 
+                : Position.Quantity;
+                
+            int projectedPosition = currentSignedPosition + (side == "buy" ? quantity : -quantity);
+            
+            Print($"PlaceOrder: Position check - Current={currentSignedPosition}, Projected={projectedPosition}, Max={MaxPositionSize}");
+            
+            if (Math.Abs(projectedPosition) > MaxPositionSize)
+            {
+                Print($"PlaceOrder: REJECTED - Position size exceeded");
+                return;
+            }
 
             bool isBuy = side == "buy";
+            Print($"PlaceOrder: EXECUTING - {(isBuy ? "BUY" : "SELL")} {quantity} contracts");
+            
             if (orderType == "market")
             {
+                Print($"PlaceOrder: Using MARKET order");
                 if (isBuy) EnterLong(quantity, "Signal");
                 else       EnterShort(quantity, "Signal");
             }
@@ -204,6 +226,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             {
                 double price = limitPrice > 0 ? limitPrice : (latestBidPrice + latestAskPrice) / 2.0;
                 price = Instrument.MasterInstrument.RoundToTickSize(price);
+                Print($"PlaceOrder: Using LIMIT order at {price}");
                 if (isBuy) EnterLongLimit(quantity, price, "Signal");
                 else       EnterShortLimit(quantity, price, "Signal");
             }
@@ -219,6 +242,11 @@ namespace NinjaTrader.NinjaScript.Strategies
                     ? currentSessionKey.Split('T')[0]
                     : e.Time.Date.ToString("yyyy-MM-dd");
 
+            // Properly report position quantity with correct sign for short positions
+            int positionQty = Position.MarketPosition == MarketPosition.Short 
+                ? -Position.Quantity 
+                : Position.Quantity;
+
             var sb = new StringBuilder(320);
             sb.Append('{');
             AddJsonField(sb, "symbolName", Instrument.FullName); sb.Append(',');
@@ -227,7 +255,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             AddJsonField(sb, "lastSize", (long)e.Volume); sb.Append(',');
             AddJsonField(sb, "bidPrice", latestBidPrice); sb.Append(',');
             AddJsonField(sb, "askPrice", latestAskPrice); sb.Append(',');
-            AddJsonField(sb, "positionQty", Position.Quantity); sb.Append(',');
+            AddJsonField(sb, "positionQty", positionQty); sb.Append(',');
             AddJsonField(sb, "sessionDate", sessionDateString); sb.Append(',');
             AddJsonField(sb, "vwap", sessionVwap);
             sb.Append('}');

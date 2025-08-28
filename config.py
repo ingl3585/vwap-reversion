@@ -10,11 +10,14 @@ API_HOST = "127.0.0.1"
 API_PORT = 8000
 
 # Trading Policy Configuration
-DEFAULT_Z_ENTRY = 2.0
+DEFAULT_Z_ENTRY = 6.0  # 3x wider deviation for more conservative entries
 DEFAULT_Z_EXIT = 0.5
 DEFAULT_MAX_SPREAD_TICKS = 2.0
 MIN_OBSERVATIONS_FOR_SIGNAL = 100
 DEFAULT_QUANTITY = 1
+# Position Scaling Configuration
+Z_SCORE_SECOND_ENTRY = 10.0  # Add second position at extreme deviation
+MAX_POSITION_SIZE = 2  # Maximum total position size
 TICK_SIZE = 0.25
 MIN_STD_TICKS = 2.0
 
@@ -22,6 +25,17 @@ MIN_STD_TICKS = 2.0
 EWMA_ALPHA = 0.10
 MIN_VOLUME_THRESHOLD = 1e-9
 MIN_VARIANCE_THRESHOLD = 4.0
+
+# Trend Filter Configuration
+ADX_TREND_THRESHOLD = 25.0  # ADX > 25 indicates strong trend (avoid mean reversion)
+ADX_PERIOD = 14  # Standard ADX calculation period
+Z_SCORE_PERSISTENCE_MINUTES = 30  # Minutes above threshold = trend day
+Z_SCORE_PERSISTENCE_THRESHOLD = 1.5  # Z-score level for persistence check
+# NY Session in Central Time (CT): 8:30 AM - 3:00 PM CT
+NY_SESSION_START_HOUR = 8
+NY_SESSION_START_MINUTE = 30
+NY_SESSION_END_HOUR = 15
+NY_SESSION_END_MINUTE = 0
 
 # State Management
 MIN_CUMULATIVE_VOLUME = 1e-9

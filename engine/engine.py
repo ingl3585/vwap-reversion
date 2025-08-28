@@ -3,16 +3,15 @@
 import logging
 from api.schemas import TickFeature, DecisionMessage
 from engine.state import StateStore, SymbolState
-from engine.indicators import update_ewma_z
-from engine.policy import Policy
+from strategies.vwap_reversion.vwap_reversion_strategy import VWAPReversionStrategy
 
 logger = logging.getLogger("engine.engine")
 
 class DecisionEngine:
     def __init__(self):
         self.state_store = StateStore()
-        self.policy = Policy()
-        logger.info("DecisionEngine initialized")
+        self.strategy = VWAPReversionStrategy()
+        logger.info("DecisionEngine initialized with VWAP Reversion strategy")
 
     def _maybe_reset_session(self, state: SymbolState, session_date: str, symbol_name: str):
         if state.currentSessionDate and state.currentSessionDate != session_date:
@@ -56,23 +55,9 @@ class DecisionEngine:
     def decide(self, tick: TickFeature) -> DecisionMessage:
         state = self.state_store.get(tick.symbolName)
         self._maybe_reset_session(state, tick.sessionDate, tick.symbolName)
-        vwap_price = tick.vwap
-        deviation = tick.lastPrice - vwap_price
+        
         # Track position state for validation
         self._validate_and_update_position(state, tick.positionQty)
-
-        # increment observation count for warmup logic
-        state.observationCount += 1
-        z_score = update_ewma_z(state, deviation)
-        spread = tick.askPrice - tick.bidPrice
-        mid_price = 0.5 * (tick.bidPrice + tick.askPrice)
         
-        logger.info(
-            f"Calculations for {tick.symbolName}: vwap={vwap_price:.4f}, "
-            f"deviation={deviation:.4f}, z_score={z_score:.4f}, spread={spread:.4f}, mid={mid_price:.4f}"
-        )
-        
-        return self.policy.decide(
-            z_score, tick.positionQty, mid_price, spread, 
-            state.observationCount, state.emaVariance, tick.tickSize
-        )
+        # Delegate to strategy
+        return self.strategy.decide(tick, state)
