@@ -1,9 +1,11 @@
 # engine/engine.py
 
 import logging
+import config
 from api.schemas import TickFeature, DecisionMessage
 from engine.state import StateStore, SymbolState
 from strategies.vwap_reversion.vwap_reversion_strategy import VWAPReversionStrategy
+from platforms.platform_factory import PlatformFactory
 
 logger = logging.getLogger("engine.engine")
 
@@ -11,7 +13,8 @@ class DecisionEngine:
     def __init__(self):
         self.state_store = StateStore()
         self.strategy = VWAPReversionStrategy()
-        logger.info("DecisionEngine initialized with VWAP Reversion strategy")
+        self.platform = PlatformFactory.create_platform()
+        logger.info(f"DecisionEngine initialized with VWAP Reversion strategy on {self.platform.get_platform_name()}")
 
     def _maybe_reset_session(self, state: SymbolState, session_date: str, symbol_name: str):
         if state.currentSessionDate and state.currentSessionDate != session_date:
@@ -59,5 +62,13 @@ class DecisionEngine:
         # Track position state for validation
         self._validate_and_update_position(state, tick.positionQty)
         
-        # Delegate to strategy
-        return self.strategy.decide(tick, state)
+        # Get decision from strategy
+        decision = self.strategy.decide(tick, state)
+        
+        # Execute decision on platform (for TopStep direct execution)
+        if config.TRADING_PLATFORM.upper() == "TOPSTEP":
+            success = self.platform.send_decision(decision)
+            logger.info(f"TopStep order execution: {'SUCCESS' if success else 'FAILED'}")
+        
+        # Always return decision (for NinjaTrader HTTP response or logging)
+        return decision

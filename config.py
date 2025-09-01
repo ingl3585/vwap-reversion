@@ -9,6 +9,14 @@ API_TITLE = "ResearchStrategy"
 API_HOST = "127.0.0.1"
 API_PORT = 8000
 
+# Trading Platform Configuration
+TRADING_PLATFORM = "NINJATRADER"  # Options: "NINJATRADER", "TOPSTEP"
+
+# TopStep API Configuration
+TOPSTEP_API_KEY = ""  # Set your TopStep API key here
+TOPSTEP_ACCOUNT_ID = "150KTC-V2-259344-30084132"  # Set your TopStep account ID here
+TOPSTEP_ENVIRONMENT = "DEMO"  # Options: "DEMO", "LIVE"
+
 # Trading Policy Configuration
 DEFAULT_Z_ENTRY = 6.0  # 3x wider deviation for more conservative entries
 DEFAULT_Z_EXIT = 0.5

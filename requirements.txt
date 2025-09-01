@@ -3,3 +3,6 @@
 fastapi
 uvicorn
 pydantic
+
+# TopStep API (optional - only needed if TRADING_PLATFORM="TOPSTEP")
+# git+https://github.com/mceesincus/tsxapi4py.git
