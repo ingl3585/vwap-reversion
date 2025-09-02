@@ -46,7 +46,7 @@ class VWAPReversionStrategy(BaseStrategy):
         
         # Check trend filter before making trading decisions
         should_avoid_mean_reversion = self.trend_filter.should_avoid_mean_reversion(
-            state, z_score, tick.askPrice, tick.bidPrice, tick.timestamp
+            state, z_score, tick.askPrice, tick.bidPrice, mid_price, tick.timestamp
         )
         
         logger.info(

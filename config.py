@@ -15,16 +15,17 @@ TRADING_PLATFORM = "NINJATRADER"  # Options: "NINJATRADER", "TOPSTEP"
 # TopStep API Configuration
 TOPSTEP_API_KEY = ""  # Set your TopStep API key here
 TOPSTEP_ACCOUNT_ID = "150KTC-V2-259344-30084132"  # Set your TopStep account ID here
+TOPSTEP_CONTRACT_ID = "CON.F.US.NQ.M25"  # Default contract (NQ futures)
 TOPSTEP_ENVIRONMENT = "DEMO"  # Options: "DEMO", "LIVE"
 
 # Trading Policy Configuration
-DEFAULT_Z_ENTRY = 6.0  # 3x wider deviation for more conservative entries
+DEFAULT_Z_ENTRY = 20.0  # Expanded reversion zone for more patient entries
 DEFAULT_Z_EXIT = 0.5
 DEFAULT_MAX_SPREAD_TICKS = 2.0
 MIN_OBSERVATIONS_FOR_SIGNAL = 100
 DEFAULT_QUANTITY = 1
 # Position Scaling Configuration
-Z_SCORE_SECOND_ENTRY = 10.0  # Add second position at extreme deviation
+Z_SCORE_SECOND_ENTRY = 40.0  # Add second position at extreme deviation
 MAX_POSITION_SIZE = 2  # Maximum total position size
 TICK_SIZE = 0.25
 MIN_STD_TICKS = 2.0
@@ -45,8 +46,12 @@ NY_SESSION_START_MINUTE = 30
 NY_SESSION_END_HOUR = 15
 NY_SESSION_END_MINUTE = 0
 
+# Enhanced Trend Detection Configuration
+MOMENTUM_THRESHOLD = 2.0  # Price momentum threshold (%)
+VELOCITY_THRESHOLD = 4.0  # Price velocity threshold (ticks)
+MOMENTUM_DIVERGENCE_THRESHOLD = 1.5  # Momentum divergence threshold
+
 # State Management
-MIN_CUMULATIVE_VOLUME = 1e-9
 INITIAL_EMA_VARIANCE = 16.0
 
 # Logging Configuration

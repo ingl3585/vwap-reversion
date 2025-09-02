@@ -1,6 +1,7 @@
 # strategies/vwap_reversion/policy.py - Improved with industry-standard parameters
 
 from math import sqrt
+import logging
 import config
 from api.schemas import DecisionMessage
 
@@ -13,8 +14,7 @@ class Policy:
         default_qty: int = config.DEFAULT_QUANTITY,
         warmup_observations: int = config.MIN_OBSERVATIONS_FOR_SIGNAL,
         tick_size: float = config.TICK_SIZE,
-        min_std_ticks: float = config.MIN_STD_TICKS,
-        enable_adaptive_sizing: bool = False
+        min_std_ticks: float = config.MIN_STD_TICKS
     ):
         self.z_entry = z_entry
         self.z_exit = z_exit
@@ -23,7 +23,7 @@ class Policy:
         self.warmup_observations = warmup_observations
         self.tick_size = tick_size
         self.min_std_ticks = min_std_ticks
-        self.enable_adaptive_sizing = enable_adaptive_sizing
+        self.logger = logging.getLogger("policy")
 
     def decide(self, z_score: float, position_qty: int,
                mid_price: float, spread: float,
@@ -62,30 +62,17 @@ class Policy:
         # Entry logic with position scaling
         quantity = self._calculate_scaled_quantity(z_score, position_qty)
         
-        # Debug logging for scaling
-        import logging
-        logger = logging.getLogger("policy.scaling")
-        logger.info(f"Scaling: z_score={z_score:.2f}, position={position_qty}, quantity={quantity}")
+        # Don't place scaling orders if we already sent one
+        abs_z_score = abs(z_score)
+        abs_position = abs(position_qty)
+        is_scaling_order = abs_position == 1 and abs_z_score >= config.Z_SCORE_SECOND_ENTRY
         
-        # Additional debug for scaling conditions
-        if quantity > 0:
-            abs_z_debug = abs(z_score)
-            abs_pos_debug = abs(position_qty)
-            is_scaling_debug = abs_pos_debug == 1 and abs_z_debug >= config.Z_SCORE_SECOND_ENTRY
-            logger.info(f"DEBUG: abs_z_score={abs_z_debug:.2f}, threshold={config.Z_SCORE_SECOND_ENTRY}, abs_position={abs_pos_debug}")
-            logger.info(f"DEBUG: is_scaling={is_scaling_debug}, scaling_sent={scaling_order_sent}")
-            
-            # Don't place scaling orders if we already sent one
-            if is_scaling_debug and scaling_order_sent:
-                logger.info("DEBUG: Blocking duplicate scaling order")
-                return DecisionMessage(action="hold")
+        if is_scaling_order and scaling_order_sent:
+            self.logger.debug("Blocking duplicate scaling order")
+            return DecisionMessage(action="hold")
         
         # Only place orders if quantity > 0 (scaling logic determines this)
         if quantity > 0:
-            # Determine if this is a scaling order (second entry)
-            abs_z_score = abs(z_score)
-            abs_position = abs(position_qty)
-            is_scaling_order = abs_position == 1 and abs_z_score >= config.Z_SCORE_SECOND_ENTRY
             
             # Long entry: price significantly below VWAP (oversold)
             if z_score < -self.z_entry:
@@ -104,7 +91,7 @@ class Policy:
                     side="sell", 
                     orderType="market" if is_scaling_order else "limit",
                     quantity=quantity, 
-                    limitPrice=None if is_scaling_order else round(mid_price / effective_tick_size) * effective_tick_size
+                    limitPrice=None if is_scaling_order else round(mid_price, 2)
                 )
 
         return DecisionMessage(action="hold")

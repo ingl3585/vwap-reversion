@@ -7,7 +7,7 @@ class SymbolState:
     __slots__ = (
         "observationCount", "emaDeviation", "emaVariance", "currentSessionDate", "positionQty",
         "adx_values", "high_prices", "low_prices", "z_score_persistence_start", "z_score_above_threshold",
-        "scaling_order_sent"
+        "scaling_order_sent", "price_history", "z_score_history"
     )
     def __init__(self):
         self.observationCount = 0
@@ -25,6 +25,10 @@ class SymbolState:
         
         # Position scaling state
         self.scaling_order_sent = False  # Prevent duplicate scaling orders
+        
+        # Enhanced trend filter state
+        self.price_history = []      # For momentum calculation
+        self.z_score_history = []    # For momentum divergence detection
 
     def reset_session(self):
         self.observationCount = 0
@@ -38,6 +42,10 @@ class SymbolState:
         self.z_score_persistence_start = None
         self.z_score_above_threshold = False
         self.scaling_order_sent = False
+        
+        # Reset enhanced trend filter state
+        self.price_history.clear()
+        self.z_score_history.clear()
         # Note: positionQty persists across sessions
 
 class StateStore:
