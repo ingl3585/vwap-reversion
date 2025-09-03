@@ -19,14 +19,21 @@ TOPSTEP_CONTRACT_ID = "CON.F.US.NQ.M25"  # Default contract (NQ futures)
 TOPSTEP_ENVIRONMENT = "DEMO"  # Options: "DEMO", "LIVE"
 
 # Trading Policy Configuration
-DEFAULT_Z_ENTRY = 20.0  # Expanded reversion zone for more patient entries
-DEFAULT_Z_EXIT = 0.5
 DEFAULT_MAX_SPREAD_TICKS = 2.0
 MIN_OBSERVATIONS_FOR_SIGNAL = 100
 DEFAULT_QUANTITY = 1
-# Position Scaling Configuration
-Z_SCORE_SECOND_ENTRY = 40.0  # Add second position at extreme deviation
 MAX_POSITION_SIZE = 2  # Maximum total position size
+
+# Session-Based Z-Score Thresholds
+# NY Session (7:30 AM - 4:00 PM CT) - Conservative during high volume
+NY_SESSION_Z_ENTRY = 20.0          # Conservative for trend-prone periods
+NY_SESSION_Z_EXIT = 0.5
+NY_SESSION_Z_SECOND_ENTRY = 40.0   # Very high threshold for scaling
+
+# Overnight Session (4:00 PM - 7:30 AM CT) - Aggressive during low volume  
+OVERNIGHT_Z_ENTRY = 6.0            # More responsive for cleaner mean reversion
+OVERNIGHT_Z_EXIT = 0.3             # Quicker exits in lower volume
+OVERNIGHT_Z_SECOND_ENTRY = 10.0    # Lower threshold for scaling
 TICK_SIZE = 0.25
 MIN_STD_TICKS = 2.0
 
@@ -40,10 +47,10 @@ ADX_TREND_THRESHOLD = 25.0  # ADX > 25 indicates strong trend (avoid mean revers
 ADX_PERIOD = 14  # Standard ADX calculation period
 Z_SCORE_PERSISTENCE_MINUTES = 30  # Minutes above threshold = trend day
 Z_SCORE_PERSISTENCE_THRESHOLD = 1.5  # Z-score level for persistence check
-# NY Session in Central Time (CT): 8:30 AM - 3:00 PM CT
-NY_SESSION_START_HOUR = 8
+# NY Session in Central Time (CT): 7:30 AM - 4:00 PM CT
+NY_SESSION_START_HOUR = 7
 NY_SESSION_START_MINUTE = 30
-NY_SESSION_END_HOUR = 15
+NY_SESSION_END_HOUR = 16
 NY_SESSION_END_MINUTE = 0
 
 # Enhanced Trend Detection Configuration

@@ -2,38 +2,73 @@
 
 from math import sqrt
 import logging
+from datetime import time
 import config
 from api.schemas import DecisionMessage
 
 class Policy:
     def __init__(
         self,
-        z_entry: float = config.DEFAULT_Z_ENTRY,
-        z_exit: float = config.DEFAULT_Z_EXIT,
         max_spread_ticks: float = config.DEFAULT_MAX_SPREAD_TICKS,
         default_qty: int = config.DEFAULT_QUANTITY,
         warmup_observations: int = config.MIN_OBSERVATIONS_FOR_SIGNAL,
         tick_size: float = config.TICK_SIZE,
         min_std_ticks: float = config.MIN_STD_TICKS
     ):
-        self.z_entry = z_entry
-        self.z_exit = z_exit
         self.max_spread_ticks = max_spread_ticks
         self.default_qty = default_qty
         self.warmup_observations = warmup_observations
         self.tick_size = tick_size
         self.min_std_ticks = min_std_ticks
         self.logger = logging.getLogger("policy")
+        
+        # NY Session timing
+        self.ny_session_start = time(config.NY_SESSION_START_HOUR, config.NY_SESSION_START_MINUTE)
+        self.ny_session_end = time(config.NY_SESSION_END_HOUR, config.NY_SESSION_END_MINUTE)
+
+    def _is_ny_session(self, timestamp) -> bool:
+        """Check if timestamp is within NY trading session (CT)"""
+        if timestamp is None:
+            return True  # Default to NY session if no timestamp
+        current_time = timestamp.time()
+        return self.ny_session_start <= current_time <= self.ny_session_end
+
+    def _get_session_thresholds(self, timestamp):
+        """Get z-score thresholds based on current session"""
+        is_ny = self._is_ny_session(timestamp)
+        
+        if is_ny:
+            return {
+                'z_entry': config.NY_SESSION_Z_ENTRY,
+                'z_exit': config.NY_SESSION_Z_EXIT,
+                'z_second_entry': config.NY_SESSION_Z_SECOND_ENTRY,
+                'session': 'NY'
+            }
+        else:
+            return {
+                'z_entry': config.OVERNIGHT_Z_ENTRY,
+                'z_exit': config.OVERNIGHT_Z_EXIT,  
+                'z_second_entry': config.OVERNIGHT_Z_SECOND_ENTRY,
+                'session': 'OVERNIGHT'
+            }
 
     def decide(self, z_score: float, position_qty: int,
                mid_price: float, spread: float,
                observation_count: int, ema_variance: float, 
                instrument_tick_size: float = None,
                avoid_mean_reversion: bool = False,
-               scaling_order_sent: bool = False) -> DecisionMessage:
+               scaling_order_sent: bool = False,
+               timestamp=None) -> DecisionMessage:
 
         # Use instrument-specific tick size if provided, otherwise fall back to default
         effective_tick_size = instrument_tick_size or self.tick_size
+
+        # Get session-based thresholds
+        thresholds = self._get_session_thresholds(timestamp)
+        z_entry = thresholds['z_entry']
+        z_exit = thresholds['z_exit']
+        z_second_entry = thresholds['z_second_entry']
+        session = thresholds['session']
 
         # Warmup guard - need sufficient observations for statistical significance
         if observation_count < self.warmup_observations:
@@ -42,7 +77,7 @@ class Policy:
         # Trend filter guard - avoid mean reversion during strong trends
         if avoid_mean_reversion:
             # Still allow exits during trend days, but no new mean reversion entries
-            if abs(z_score) < self.z_exit and position_qty != 0:
+            if abs(z_score) < z_exit and position_qty != 0:
                 return DecisionMessage(action="flatten")
             return DecisionMessage(action="hold")
 
@@ -56,16 +91,19 @@ class Policy:
             return DecisionMessage(action="hold")
 
         # Exit logic
-        if abs(z_score) < self.z_exit and position_qty != 0:
+        if abs(z_score) < z_exit and position_qty != 0:
             return DecisionMessage(action="flatten")
 
         # Entry logic with position scaling
-        quantity = self._calculate_scaled_quantity(z_score, position_qty)
+        quantity = self._calculate_scaled_quantity(z_score, position_qty, z_entry, z_second_entry)
+        
+        # Log session and thresholds for debugging
+        self.logger.info(f"Session: {session}, Z-Entry: {z_entry}, Z-Exit: {z_exit}, Z-Score: {z_score:.2f}")
         
         # Don't place scaling orders if we already sent one
         abs_z_score = abs(z_score)
         abs_position = abs(position_qty)
-        is_scaling_order = abs_position == 1 and abs_z_score >= config.Z_SCORE_SECOND_ENTRY
+        is_scaling_order = abs_position == 1 and abs_z_score >= z_second_entry
         
         if is_scaling_order and scaling_order_sent:
             self.logger.debug("Blocking duplicate scaling order")
@@ -75,7 +113,7 @@ class Policy:
         if quantity > 0:
             
             # Long entry: price significantly below VWAP (oversold)
-            if z_score < -self.z_entry:
+            if z_score < -z_entry:
                 return DecisionMessage(
                     action="place", 
                     side="buy", 
@@ -85,7 +123,7 @@ class Policy:
                 )
             
             # Short entry: price significantly above VWAP (overbought)  
-            if z_score > self.z_entry:
+            if z_score > z_entry:
                 return DecisionMessage(
                     action="place", 
                     side="sell", 
@@ -96,13 +134,14 @@ class Policy:
 
         return DecisionMessage(action="hold")
 
-    def _calculate_scaled_quantity(self, z_score: float, current_position: int) -> int:
+    def _calculate_scaled_quantity(self, z_score: float, current_position: int, 
+                                  z_entry: float, z_second_entry: float) -> int:
         """
         Calculate position size based on z-score extremes and current position.
         
         Logic:
-        - z_score 6.0+: 1 contract (if no position)
-        - z_score 10.0+: add 1 more contract (if position in same direction < 2)
+        - First entry at z_entry threshold (if no position)
+        - Second entry at z_second_entry threshold (if position matches direction and < 2)
         """
         abs_z_score = abs(z_score)
         abs_position = abs(current_position)
@@ -117,12 +156,12 @@ class Policy:
             (is_long_signal and current_position >= 0)      # Long signal with flat/long position
         )
         
-        # First entry at 6+ z-score (no position)
-        if abs_z_score >= self.z_entry and current_position == 0:
+        # First entry at z_entry threshold (no position)
+        if abs_z_score >= z_entry and current_position == 0:
             return 1
             
-        # Second entry at 10+ z-score (if position matches direction and < 2 contracts)
-        elif (abs_z_score >= config.Z_SCORE_SECOND_ENTRY and 
+        # Second entry at z_second_entry threshold (if position matches direction and < 2 contracts)
+        elif (abs_z_score >= z_second_entry and 
               position_matches_signal and abs_position == 1):
             return 1  # Add one more contract in same direction
             

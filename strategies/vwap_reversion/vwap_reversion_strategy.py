@@ -63,15 +63,32 @@ class VWAPReversionStrategy(BaseStrategy):
         decision = self.policy.decide(
             z_score, tick.positionQty, mid_price, spread,
             state.observationCount, state.emaVariance, tick.tickSize,
-            should_avoid_mean_reversion, state.scaling_order_sent
+            should_avoid_mean_reversion, state.scaling_order_sent, tick.timestamp
         )
         
         # If we sent a scaling order, mark it to prevent duplicates
         if (decision.action == "place" and abs(tick.positionQty) == 1 and 
-            abs(z_score) >= config.Z_SCORE_SECOND_ENTRY):
+            self._is_scaling_order(z_score, tick.timestamp)):
             state.scaling_order_sent = True
             
         return decision
+    
+    def _is_scaling_order(self, z_score: float, timestamp) -> bool:
+        """Check if z-score meets scaling threshold for current session"""
+        # Use same session detection logic as policy
+        from datetime import time
+        ny_start = time(config.NY_SESSION_START_HOUR, config.NY_SESSION_START_MINUTE)
+        ny_end = time(config.NY_SESSION_END_HOUR, config.NY_SESSION_END_MINUTE)
+        
+        if timestamp is None:
+            # Default to NY session if no timestamp
+            threshold = config.NY_SESSION_Z_SECOND_ENTRY
+        else:
+            current_time = timestamp.time()
+            is_ny_session = ny_start <= current_time <= ny_end
+            threshold = config.NY_SESSION_Z_SECOND_ENTRY if is_ny_session else config.OVERNIGHT_Z_SECOND_ENTRY
+        
+        return abs(z_score) >= threshold
     
     def reset_session(self, state: SymbolState):
         """Reset strategy-specific state for new session"""
