@@ -46,6 +46,28 @@ class DecisionEngine:
         except (ValueError, IndexError):
             return False
 
+    def _is_restricted_hours(self, timestamp) -> bool:
+        """Check if timestamp falls within restricted trading hours (CT)"""
+        if timestamp is None:
+            return False  # If no timestamp, allow trading
+        
+        from datetime import time
+        current_time = timestamp.time()
+        
+        # Morning restriction: 7:25 AM - 7:45 AM CT
+        morning_start = time(config.MORNING_RESTRICTION_START_HOUR, config.MORNING_RESTRICTION_START_MINUTE)
+        morning_end = time(config.MORNING_RESTRICTION_END_HOUR, config.MORNING_RESTRICTION_END_MINUTE)
+        
+        # Afternoon restriction: 3:15 PM - 5:00 PM CT  
+        afternoon_start = time(config.AFTERNOON_RESTRICTION_START_HOUR, config.AFTERNOON_RESTRICTION_START_MINUTE)
+        afternoon_end = time(config.AFTERNOON_RESTRICTION_END_HOUR, config.AFTERNOON_RESTRICTION_END_MINUTE)
+        
+        # Check if current time falls within either restriction window
+        is_morning_restricted = morning_start <= current_time <= morning_end
+        is_afternoon_restricted = afternoon_start <= current_time <= afternoon_end
+        
+        return is_morning_restricted or is_afternoon_restricted
+
     def _validate_and_update_position(self, state: SymbolState, reported_position: int):
         if state.positionQty != reported_position:
             if state.observationCount > 0:
@@ -58,6 +80,18 @@ class DecisionEngine:
     def decide(self, tick: TickFeature) -> DecisionMessage:
         state = self.state_store.get(tick.symbolName)
         self._maybe_reset_session(state, tick.sessionDate, tick.symbolName)
+        
+        # SYSTEM-WIDE RESTRICTION CHECK: Override all trading during restricted hours
+        if self._is_restricted_hours(tick.timestamp):
+            if tick.positionQty != 0:
+                logger.info(
+                    f"RESTRICTED HOURS: Flattening position for {tick.symbolName} "
+                    f"(position: {tick.positionQty}, time: {tick.timestamp})"
+                )
+                return DecisionMessage(action="flatten")
+            else:
+                logger.debug(f"RESTRICTED HOURS: Blocking entries for {tick.symbolName}")
+                return DecisionMessage(action="hold")
         
         # Track position state for validation
         self._validate_and_update_position(state, tick.positionQty)

@@ -10,14 +10,16 @@ def update_ewma_z(state: SymbolState, deviation: float, alpha: float = config.EW
         state.emaDeviation = deviation
         state.emaVariance = abs(deviation) * 2.0  # Initial variance estimate
     else:
-        # Standard EWMA update
+        # Standard EWMA update - CRITICAL: Store previous EMA before updating for correct variance calculation
+        prev_ema_deviation = state.emaDeviation
         state.emaDeviation = (1 - alpha) * state.emaDeviation + alpha * deviation
-        squared_deviation = (deviation - state.emaDeviation) ** 2
+        squared_deviation = (deviation - prev_ema_deviation) ** 2
         state.emaVariance = (1 - alpha) * state.emaVariance + alpha * squared_deviation
     
-    # Apply bias correction for early observations (Welford-like adjustment)
+    # Apply proper EWMA bias correction for early observations
     if state.observationCount < 20:  # Bias correction period
-        bias_correction = state.observationCount / (state.observationCount + 1)
+        # Standard EWMA bias correction formula
+        bias_correction = (1 - (1 - alpha) ** state.observationCount) / (1 - (1 - alpha))
         corrected_variance = state.emaVariance / bias_correction
     else:
         corrected_variance = state.emaVariance

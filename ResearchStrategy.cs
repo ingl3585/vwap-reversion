@@ -130,6 +130,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 
             if (isHttpRequestInFlight || (DateTime.Now - lastHttpRequestAt).TotalMilliseconds < MinimumRequestGapMilliseconds) return;
 
+            // CRITICAL: Set flag BEFORE async task to prevent race condition
+            isHttpRequestInFlight = true;
+            lastHttpRequestAt = DateTime.Now;
             _ = Task.Run(() => SendDecisionRequest(e));
         }
         
@@ -138,9 +141,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
         private async Task SendDecisionRequest(MarketDataEventArgs e)
         {
-            if (isHttpRequestInFlight) return;
-            isHttpRequestInFlight = true;
-            lastHttpRequestAt = DateTime.Now;
+            // Flag already set in OnMarketData to prevent race condition
 
             try
             {
