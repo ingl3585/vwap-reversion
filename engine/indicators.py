@@ -16,7 +16,7 @@ def update_ewma_z(state: SymbolState, deviation: float, alpha: float = config.EW
         state.emaVariance = (1 - alpha) * state.emaVariance + alpha * squared_deviation
     
     # Apply bias correction for early observations (Welford-like adjustment)
-    if state.observationCount < 20:  # Bias correction period
+    if state.observationCount < config.BIAS_CORRECTION_PERIOD:
         bias_correction = state.observationCount / (state.observationCount + 1)
         corrected_variance = state.emaVariance / bias_correction
     else:

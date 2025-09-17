@@ -29,7 +29,8 @@ class VwapReversionStrategy(BaseStrategy):
         
         logger.info(
             f"VWAP calculations for {tick.symbolName}: vwap={vwap_price:.4f}, "
-            f"deviation={deviation:.4f}, z_score={z_score:.4f}, spread={spread:.4f}, mid={mid_price:.4f}"
+            f"deviation={deviation:.4f}, z_score={z_score:.4f}, spread={spread:.4f}, mid={mid_price:.4f}, "
+            f"position={tick.positionQty}, entry_levels={state.entry_levels_triggered}"
         )
         
         return self.policy.decide(

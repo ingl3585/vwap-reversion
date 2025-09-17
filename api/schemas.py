@@ -22,5 +22,20 @@ class DecisionMessage(BaseModel):
     limitPrice: float | None = None
     strategy: str | None = None
 
+class ExecutionRequest(BaseModel):
+    tick: TickFeature
+    execution_method: str | None = None  # Optional override for execution method
+
+class ExecutionResponse(BaseModel):
+    success: bool
+    order_id: str | None = None
+    error_message: str | None = None
+    executed_price: float | None = None
+    executed_quantity: int | None = None
+
 class MultiStrategyResponse(BaseModel):
     decisions: list[DecisionMessage]
+    
+class ExecutedStrategyResponse(BaseModel):
+    decisions: list[DecisionMessage]
+    execution_results: list[ExecutionResponse]
