@@ -18,7 +18,7 @@ MIN_STD_TICKS = 2.0
 SESSION_CONFIG = {
     "ny_session": {
         "start_time": "07:20",  # 6:30 AM CT (1 hour before market open)
-        "end_time": "15:14",    # 3:14 PM CT
+        "end_time": "15:15",    # 3:14 PM CT
         "flatten_time": "15:14", # Flatten all positions at 3:14 PM
         "z_exit": 2.5,
         "z_entry_levels": [20.0, 40.5, 75.0],
