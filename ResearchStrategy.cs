@@ -221,9 +221,27 @@ namespace NinjaTrader.NinjaScript.Strategies
        
         protected override void OnExecutionUpdate(Execution execution, string executionId, double price, int quantity, MarketPosition marketPosition, string orderId, DateTime time)
         {
-            // Clean format: [timestamp] SYMBOL - POSITION @ PRICE
             string symbol = Instrument.MasterInstrument.Name;
-            Print($"[{time:HH:mm:ss}] {symbol} - {Position.Quantity} @ {price}");
+            
+            string actionType = "";
+            int displayPosition = Position.Quantity;
+            
+            if (Position.Quantity == 0)
+            {
+                actionType = "[EXIT]";
+            }
+            else if (execution.Order.OrderAction == OrderAction.Sell)
+            {
+                actionType = "[SHORT]";
+                displayPosition = -Math.Abs(Position.Quantity);
+            }
+            else if (execution.Order.OrderAction == OrderAction.Buy)
+            {
+                actionType = "[LONG]";
+                displayPosition = Math.Abs(Position.Quantity);
+            }
+            
+            Print($"[{time:HH:mm:ss}] {actionType} {symbol} - {displayPosition} @ {price}");
         }
 
         protected override void OnOrderUpdate(Order order, double limitPrice, double stopPrice, int quantity, int filled, double averageFillPrice, OrderState orderState, DateTime time, ErrorCode error, string comment)
@@ -240,10 +258,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
         private string BuildJsonRequest(MarketDataEventArgs e)
         {
-            string sessionDateString =
-                (!string.IsNullOrEmpty(currentSessionKey) && currentSessionKey.Contains("T"))
-                    ? currentSessionKey.Split('T')[0]
-                    : e.Time.Date.ToString("yyyy-MM-dd");
+            string sessionDateString = e.Time.Date.ToString("yyyy-MM-dd");
 
             var sb = new StringBuilder(320);
             sb.Append('{');
@@ -320,26 +335,52 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         private int ExtractJsonInt(string json, string key)
         {
-            int start = json.IndexOf($"\"{key}\":");
-            if (start < 0) return 0;
-            start = json.IndexOf(':', start) + 1;
-            int end = start;
-            while (end < json.Length && (char.IsDigit(json[end]) || json[end] == '-')) end++;
-            string s = json.Substring(start, end - start).Trim();
-            return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out int result) ? result : 0;
+            try
+            {
+                int start = json.IndexOf($"\"{key}\":");
+                if (start < 0) return 0;
+                start = json.IndexOf(':', start) + 1;
+                if (start >= json.Length) return 0;
+                
+                int end = start;
+                while (end < json.Length && (char.IsDigit(json[end]) || json[end] == '-')) end++;
+                
+                if (end <= start || start < 0 || end - start <= 0) return 0;
+                
+                string s = json.Substring(start, end - start).Trim();
+                return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out int result) ? result : 0;
+            }
+            catch (Exception ex)
+            {
+                Print($"JSON parsing error for key '{key}': {ex.Message}");
+                return 0;
+            }
         }
 
         private double ExtractJsonDouble(string json, string key)
         {
-            int start = json.IndexOf($"\"{key}\":");
-            if (start < 0) return 0.0;
-            start = json.IndexOf(':', start) + 1;
-            int end = start;
-            while (end < json.Length &&
-                   (char.IsDigit(json[end]) || json[end] == '-' || json[end] == '.' || json[end] == 'e' || json[end] == 'E'))
-                end++;
-            string s = json.Substring(start, end - start).Trim();
-            return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double result) ? result : 0.0;
+            try
+            {
+                int start = json.IndexOf($"\"{key}\":");
+                if (start < 0) return 0.0;
+                start = json.IndexOf(':', start) + 1;
+                if (start >= json.Length) return 0.0;
+                
+                int end = start;
+                while (end < json.Length &&
+                       (char.IsDigit(json[end]) || json[end] == '-' || json[end] == '.' || json[end] == 'e' || json[end] == 'E'))
+                    end++;
+                    
+                if (end <= start || start < 0 || end - start <= 0) return 0.0;
+                
+                string s = json.Substring(start, end - start).Trim();
+                return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double result) ? result : 0.0;
+            }
+            catch (Exception ex)
+            {
+                Print($"JSON parsing error for key '{key}': {ex.Message}");
+                return 0.0;
+            }
         }
         #endregion
     }

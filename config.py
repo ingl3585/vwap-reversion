@@ -10,15 +10,40 @@ API_HOST = "127.0.0.1"
 API_PORT = 8000
 
 # Trading Policy Configuration
-DEFAULT_Z_EXIT = 2.5
 MIN_OBSERVATIONS_FOR_SIGNAL = 100
 TICK_SIZE = 0.25
 MIN_STD_TICKS = 2.0
 
-# Layered Entry Configuration
-Z_ENTRY_LEVELS = [20.0,  40.5, 75.0]  # Three z-score thresholds for entries
-ENTRY_QUANTITIES = [1, 2, 3]         # Corresponding quantities for each level
-MAX_TOTAL_POSITION = 6               # Maximum total position across all levels
+# Session Configuration (Central Time)
+SESSION_CONFIG = {
+    "ny_session": {
+        "start_time": "07:20",  # 6:30 AM CT (1 hour before market open)
+        "end_time": "15:14",    # 3:14 PM CT
+        "flatten_time": "15:14", # Flatten all positions at 3:14 PM
+        "z_exit": 2.5,
+        "z_entry_levels": [20.0, 40.5, 75.0],
+        "entry_quantities": [1, 2, 3],
+        "max_total_position": 6
+    },
+    "overnight_session": {
+        "start_time": "17:00",  # 5:00 PM CT
+        "end_time": "07:20",    # 6:30 AM CT (next day)
+        "flatten_time": None,   # No forced flatten for overnight
+        "z_exit": 0.5,          # Tighter exit for overnight
+        "z_entry_levels": [8.0, 16.0, 20.0],  # Higher thresholds for overnight
+        "entry_quantities": [1, 1, 2],           # Smaller position sizes
+        "max_total_position": 4                  # Lower max position
+    }
+}
+
+# Default session fallback
+DEFAULT_SESSION = "ny_session"
+
+# No trading periods (Central Time)
+NO_TRADING_PERIODS = [
+    {"start": "15:14", "end": "16:00"},  # Post-close, no new positions
+    {"start": "16:00", "end": "17:00"}   # Maintenance window
+]
 
 # Indicator Configuration
 EWMA_ALPHA = 0.10

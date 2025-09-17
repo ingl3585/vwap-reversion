@@ -37,8 +37,8 @@ class StrategyManager:
                 # Handle session resets per strategy
                 self._maybe_reset_strategy_session(strategy_state, tick.sessionDate, tick.symbolName, strategy_name)
                 
-                # Update position for this strategy
-                strategy_state.positionQty = tick.positionQty
+                # Note: Position tracking is handled within each strategy's decide() method
+                # to support expected position tracking for layered entries
                 
                 decision = strategy.decide(tick, strategy_state)
                 
@@ -65,8 +65,8 @@ class StrategyManager:
                 )
             
             logger.info(
-                f"Session reset for {symbol_name} in {strategy_name}: {strategy_state.currentSessionDate} -> {session_date} "
-                f"(had {strategy_state.observationCount} observations)"
+                f"SESSION RESET TRIGGERED! {strategy_state.currentSessionDate} -> {session_date} "
+                f"(entry levels will be cleared)"
             )
             strategy_state.reset_session()
                 
