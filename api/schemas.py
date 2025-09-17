@@ -20,3 +20,7 @@ class DecisionMessage(BaseModel):
     orderType: str | None = None
     quantity: int | None = None
     limitPrice: float | None = None
+    strategy: str | None = None
+
+class MultiStrategyResponse(BaseModel):
+    decisions: list[DecisionMessage]

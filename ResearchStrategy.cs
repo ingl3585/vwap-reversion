@@ -28,7 +28,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         [NinjaScriptProperty, Range(1, 100)]
         [Display(Name = "Max Position Size", Order = 2, GroupName = "Parameters")]
-        public int MaxPositionSize { get; set; } = 2;
+        public int MaxPositionSize { get; set; } = 6;
 
         [NinjaScriptProperty, Range(100, 10000)]
         [Display(Name = "HTTP Timeout (ms)", Order = 3, GroupName = "Parameters")]

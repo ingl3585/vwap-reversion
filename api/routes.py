@@ -2,23 +2,24 @@
 
 import logging
 from fastapi import APIRouter
-from api.schemas import TickFeature, DecisionMessage
-from engine.engine import DecisionEngine
+from api.schemas import TickFeature, MultiStrategyResponse
+from engine.strategy_manager import StrategyManager
 
 logger = logging.getLogger("api.routes")
 router = APIRouter()
-engine = DecisionEngine()
+strategy_manager = StrategyManager()
 
-@router.post("/decide", response_model=DecisionMessage)
-def decide(tick: TickFeature) -> DecisionMessage:
+@router.post("/decide", response_model=MultiStrategyResponse)
+def decide(tick: TickFeature) -> MultiStrategyResponse:
     logger.info(f"Received tick: symbol={tick.symbolName}, price={tick.lastPrice}, size={tick.lastSize}, "
                 f"bid={tick.bidPrice}, ask={tick.askPrice}, position={tick.positionQty}, session={tick.sessionDate}")
     
-    decision = engine.decide(tick)
+    decisions = strategy_manager.process_tick(tick)
     
-    limit_price = getattr(decision, "limitPrice", None)
-    logger.info(
-        f"Decision: action={decision.action}, side={decision.side}, qty={decision.quantity}, "
-        f"limit={limit_price}, order_type={decision.orderType}")
+    for decision in decisions:
+        limit_price = getattr(decision, "limitPrice", None)
+        logger.info(
+            f"Strategy {decision.strategy} decision: action={decision.action}, side={decision.side}, "
+            f"qty={decision.quantity}, limit={limit_price}, order_type={decision.orderType}")
     
-    return decision
+    return MultiStrategyResponse(decisions=decisions)

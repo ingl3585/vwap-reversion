@@ -54,25 +54,14 @@ class DecisionEngine:
             state.positionQty = reported_position
 
     def decide(self, tick: TickFeature) -> DecisionMessage:
-        state = self.state_store.get(tick.symbolName)
-        self._maybe_reset_session(state, tick.sessionDate, tick.symbolName)
-        vwap_price = tick.vwap
-        deviation = tick.lastPrice - vwap_price
-        # Track position state for validation
-        self._validate_and_update_position(state, tick.positionQty)
-
-        # increment observation count for warmup logic
-        state.observationCount += 1
-        z_score = update_ewma_z(state, deviation)
-        spread = tick.askPrice - tick.bidPrice
-        mid_price = 0.5 * (tick.bidPrice + tick.askPrice)
+        """Legacy single-strategy decision method - kept for backward compatibility"""
+        from engine.strategy_manager import StrategyManager
         
-        logger.info(
-            f"Calculations for {tick.symbolName}: vwap={vwap_price:.4f}, "
-            f"deviation={deviation:.4f}, z_score={z_score:.4f}, spread={spread:.4f}, mid={mid_price:.4f}"
-        )
+        # Use strategy manager but return only first decision for backward compatibility
+        manager = StrategyManager()
+        decisions = manager.process_tick(tick)
         
-        return self.policy.decide(
-            z_score, tick.positionQty, mid_price, spread, 
-            state.observationCount, state.emaVariance, tick.tickSize
-        )
+        if decisions:
+            return decisions[0]  # Return first strategy's decision
+        else:
+            return DecisionMessage(action="hold")
