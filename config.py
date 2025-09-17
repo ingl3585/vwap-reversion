@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import os
 from datetime import datetime
 
 # API Configuration
@@ -17,22 +18,22 @@ MIN_STD_TICKS = 2.0
 # Session Configuration (Central Time)
 SESSION_CONFIG = {
     "ny_session": {
-        "start_time": "07:20",  # 6:30 AM CT (1 hour before market open)
-        "end_time": "15:15",    # 3:14 PM CT
+        "start_time": "07:20",  # 7:20 AM CT
+        "end_time": "15:15",    # 3:15 PM CT
         "flatten_time": "15:14", # Flatten all positions at 3:14 PM
         "z_exit": 2.5,
         "z_entry_levels": [20.0, 40.5, 75.0],
-        "entry_quantities": [1, 2, 3],
-        "max_total_position": 6
+        "entry_quantities": [1, 1, 1],
+        "max_total_position": 3
     },
     "overnight_session": {
         "start_time": "17:00",  # 5:00 PM CT
-        "end_time": "07:20",    # 6:30 AM CT (next day)
+        "end_time": "07:20",    # 7:20 AM CT (next day)
         "flatten_time": None,   # No forced flatten for overnight
         "z_exit": 0.5,          # Tighter exit for overnight
         "z_entry_levels": [8.0, 16.0, 20.0],  # Higher thresholds for overnight
-        "entry_quantities": [1, 1, 2],           # Smaller position sizes
-        "max_total_position": 4                  # Lower max position
+        "entry_quantities": [1, 1, 1],        # Smaller position sizes
+        "max_total_position": 3               # Lower max position
     }
 }
 
@@ -63,8 +64,10 @@ DEFAULT_EXECUTION_METHOD = "ninjatrader"  # Options: "ninjatrader", "topstep"
 
 # TopStep API Configuration (only used when execution method is "topstep")
 TOPSTEP_API_BASE_URL = "https://gateway-api.s2f.projectx.com"
-TOPSTEP_API_TOKEN = None  # Set this in environment variable or override
-TOPSTEP_ACCOUNT_ID = None  # Set this in environment variable or override
+# Use code topstep for 50% off next time
+# 
+TOPSTEP_API_TOKEN = os.getenv("TOPSTEP_API_TOKEN")
+TOPSTEP_ACCOUNT_ID = os.getenv("TOPSTEP_ACCOUNT_ID")
 TOPSTEP_TRADING_SYMBOL = "NQ"  # The symbol to trade on TopStep
 
 # Logging Configuration
