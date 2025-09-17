@@ -5,7 +5,8 @@ from typing import Dict
 
 class SymbolState:
     __slots__ = (
-        "observationCount", "emaDeviation", "emaVariance", "currentSessionDate", "positionQty"
+        "observationCount", "emaDeviation", "emaVariance", "currentSessionDate", "positionQty",
+        "entry_levels_triggered"
     )
     def __init__(self):
         self.observationCount = 0
@@ -13,11 +14,15 @@ class SymbolState:
         self.emaVariance = config.INITIAL_EMA_VARIANCE
         self.currentSessionDate = None
         self.positionQty = 0
+        self.entry_levels_triggered = {"long": [False] * len(config.Z_ENTRY_LEVELS), 
+                                     "short": [False] * len(config.Z_ENTRY_LEVELS)}
 
     def reset_session(self):
         self.observationCount = 0
         self.emaDeviation = 0.0
         self.emaVariance = config.INITIAL_EMA_VARIANCE
+        self.entry_levels_triggered = {"long": [False] * len(config.Z_ENTRY_LEVELS), 
+                                     "short": [False] * len(config.Z_ENTRY_LEVELS)}
 
 class StateStore:
     def __init__(self):

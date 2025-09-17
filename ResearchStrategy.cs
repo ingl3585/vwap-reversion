@@ -28,7 +28,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         [NinjaScriptProperty, Range(1, 100)]
         [Display(Name = "Max Position Size", Order = 2, GroupName = "Parameters")]
-        public int MaxPositionSize { get; set; } = 2;
+        public int MaxPositionSize { get; set; } = 6;
 
         [NinjaScriptProperty, Range(100, 10000)]
         [Display(Name = "HTTP Timeout (ms)", Order = 3, GroupName = "Parameters")]
@@ -73,6 +73,9 @@ namespace NinjaTrader.NinjaScript.Strategies
                 IsInstantiatedOnEachOptimizationIteration = false;
                 BarsRequiredToTrade = 1;
                 AddPlot(Brushes.Purple, "VWAP");
+                
+                // Allow multiple entries in same direction for layered entries
+                EntriesPerDirection = int.MaxValue;
             }
             else if (State == State.DataLoaded)
             {
@@ -161,6 +164,12 @@ namespace NinjaTrader.NinjaScript.Strategies
         {
             try
             {
+                // Check if we have an empty decisions array - silently ignore
+                if (response.Contains("\"decisions\":[]"))
+                {
+                    return;
+                }
+                
                 string action = ExtractJsonString(response, "action");
                 if (string.IsNullOrEmpty(action)) return;
 
@@ -178,7 +187,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             }
             catch (Exception ex)
             {
-                Print($"Response error: {ex.Message}");
+                Print($"ERROR: {ex.Message}");
             }
         }
 
@@ -195,6 +204,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             if (Math.Abs(projectedPosition) > MaxPositionSize) return;
 
             bool isBuy = side == "buy";
+            
             if (orderType == "market")
             {
                 if (isBuy) EnterLong(quantity, "Signal");
@@ -209,6 +219,22 @@ namespace NinjaTrader.NinjaScript.Strategies
             }
         }
        
+        protected override void OnExecutionUpdate(Execution execution, string executionId, double price, int quantity, MarketPosition marketPosition, string orderId, DateTime time)
+        {
+            // Clean format: [timestamp] SYMBOL - POSITION @ PRICE
+            string symbol = Instrument.MasterInstrument.Name;
+            Print($"[{time:HH:mm:ss}] {symbol} - {Position.Quantity} @ {price}");
+        }
+
+        protected override void OnOrderUpdate(Order order, double limitPrice, double stopPrice, int quantity, int filled, double averageFillPrice, OrderState orderState, DateTime time, ErrorCode error, string comment)
+        {
+            // Only log rejections
+            if (orderState == OrderState.Rejected)
+            {
+                Print($"ORDER REJECTED - {error}: {comment}");
+            }
+        }
+        
 		#endregion
         #region JSON Helpers
 		
